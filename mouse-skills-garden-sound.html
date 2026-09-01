@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Garden Mouse Adventure</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap');
+
+  :root{
+    --sky-top:#A8DDFD;
+    --sky-bottom:#DFF3FE;
+    --grass:#7FC48C;
+    --grass-dark:#5FAE71;
+    --sun:#FFD166;
+    --bark:#8B5E3C;
+    --ink:#3E4C3E;
+    --card:#FFFFFF;
+    --pink:#FF7CA3;
+    --pink-dark:#E85D8A;
+    --firefly:#FFE066;
+    --bubble:#4FD1C5;
+    --bubble-dark:#2FB6AA;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:'Fredoka',sans-serif;}
+
+  body{
+    background:linear-gradient(var(--sky-top), var(--sky-bottom) 60%);
+    position:relative;
+    user-select:none;
+  }
+
+  #sun{
+    position:absolute; top:30px; right:60px;
+    width:90px; height:90px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #FFE08A, var(--sun));
+    box-shadow:0 0 40px rgba(255,209,102,0.7);
+  }
+
+  #hill{
+    position:absolute; bottom:0; left:0; width:100%; height:130px;
+    background:var(--grass);
+    border-top-left-radius:50% 40px;
+    border-top-right-radius:50% 40px;
+  }
+  #hill::after{
+    content:'';
+    position:absolute; top:14px; left:0; width:100%; height:20px;
+    background:var(--grass-dark);
+    border-top-left-radius:50% 40px;
+    border-top-right-radius:50% 40px;
+    opacity:.5;
+  }
+
+  header{
+    position:relative; z-index:5;
+    text-align:center; padding:22px 10px 6px;
+  }
+  h1{
+    margin:0; font-size:2.1rem; color:var(--ink);
+    text-shadow: 0 2px 0 rgba(255,255,255,0.6);
+  }
+  #subtitle{
+    margin:6px 0 0; font-size:1.15rem; color:var(--ink); font-weight:500;
+    min-height:1.4em;
+  }
+
+  /* progress trail */
+  #trail{
+    display:flex; justify-content:center; gap:18px; margin-top:10px;
+  }
+  .trail-dot{
+    width:34px; height:34px; border-radius:50%;
+    background:rgba(255,255,255,0.7);
+    border:3px solid rgba(255,255,255,0.9);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1rem; transition:transform .25s ease, background .25s ease;
+  }
+  .trail-dot.done{ background:var(--sun); transform:scale(1.15); }
+  .trail-dot.active{ border-color:var(--pink-dark); transform:scale(1.2); }
+
+  #stage{
+    position:relative;
+    width:min(880px, 94vw);
+    height:min(520px, 62vh);
+    margin:14px auto 0;
+    background:rgba(255,255,255,0.55);
+    border-radius:28px;
+    border:4px solid rgba(255,255,255,0.85);
+    overflow:hidden;
+  }
+
+  .target{
+    position:absolute;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+
+  /* Stage 1: positioning - flower spots */
+  .flower-spot{
+    width:100px; height:100px; border-radius:50%;
+    background:rgba(255,124,163,0.18);
+    border:4px dashed var(--pink);
+    font-size:46px;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .flower-spot.near{ background:rgba(255,124,163,0.35); transform:scale(1.05); }
+  .flower-spot.reached{
+    background:var(--pink);
+    border-style:solid;
+    animation:pop .35s ease;
+  }
+
+  #bee{
+    position:absolute; font-size:44px; pointer-events:none;
+    transform:translate(-50%,-50%);
+    transition:transform .05s linear;
+    filter:drop-shadow(0 3px 3px rgba(0,0,0,0.2));
+    z-index:10;
+  }
+
+  /* Stage 2: hovering - firefly */
+  .firefly-spot{
+    width:120px; height:120px; border-radius:50%;
+    font-size:52px;
+    background:rgba(255,224,102,0.15);
+  }
+  .ring{
+    position:absolute; inset:0; border-radius:50%;
+    background:conic-gradient(var(--firefly) calc(var(--p,0) * 1%), rgba(0,0,0,0) 0);
+    -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px));
+            mask:radial-gradient(farthest-side, transparent calc(100% - 10px), #000 calc(100% - 9px));
+    transition:background .05s linear;
+  }
+  .firefly-spot.awake{
+    background:var(--firefly);
+    animation:pop .35s ease;
+  }
+
+  /* Stage 3: clicking - bubbles */
+  .bubble{
+    width:90px; height:90px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.95), var(--bubble) 65%, var(--bubble-dark));
+    box-shadow:0 4px 10px rgba(0,0,0,0.15), inset 0 0 12px rgba(255,255,255,0.6);
+    font-size:0;
+    transition:transform .1s ease;
+  }
+  .bubble:hover{ transform:scale(1.08); }
+  .bubble.popped{ animation:pop-out .3s ease forwards; pointer-events:none; }
+
+  @keyframes pop{
+    0%{ transform:scale(0.8); }
+    60%{ transform:scale(1.2); }
+    100%{ transform:scale(1); }
+  }
+  @keyframes pop-out{
+    0%{ transform:scale(1); opacity:1; }
+    100%{ transform:scale(1.6); opacity:0; }
+  }
+
+  #confetti-layer{
+    position:fixed; inset:0; pointer-events:none; z-index:50;
+  }
+  .confetto{
+    position:absolute; top:-20px; width:14px; height:14px; border-radius:3px;
+    animation:fall linear forwards;
+  }
+  @keyframes fall{
+    to{ transform:translateY(110vh) rotate(400deg); }
+  }
+
+  #end-card{
+    position:fixed; inset:0; z-index:60;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(168,221,253,0.6);
+    backdrop-filter:blur(2px);
+  }
+  #end-card.show{ display:flex; }
+  #end-card .box{
+    background:var(--card); padding:36px 44px; border-radius:26px;
+    text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.15);
+    border:4px solid var(--sun);
+  }
+  #end-card h2{ margin:0 0 8px; font-size:2rem; color:var(--ink); }
+  #end-card p{ margin:0 0 20px; font-size:1.15rem; color:var(--ink); }
+  #restart{
+    font-family:'Fredoka',sans-serif; font-size:1.15rem; font-weight:600;
+    padding:12px 28px; border-radius:40px; border:none;
+    background:var(--pink); color:white; cursor:pointer;
+    box-shadow:0 4px 0 var(--pink-dark);
+  }
+  #restart:active{ transform:translateY(3px); box-shadow:0 1px 0 var(--pink-dark); }
+
+  footer{
+    position:relative; text-align:center; margin-top:10px; color:var(--ink);
+    font-size:0.95rem; opacity:0.8;
+  }
+
+  #sound-toggle{
+    position:absolute; top:22px; left:24px; z-index:20;
+    width:52px; height:52px; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.9);
+    background:rgba(255,255,255,0.7);
+    font-size:1.5rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+</style>
+</head>
+<body>
+
+<div id="sun"></div>
+<div id="hill"></div>
+<button id="sound-toggle" aria-label="Toggle sound" title="Toggle sound">🔊</button>
+
+<header>
+  <h1>Garden Mouse Adventure</h1>
+  <div id="subtitle">Move the mouse to guide the bee to each flower!</div>
+  <div id="trail">
+    <div class="trail-dot active" id="dot-1">🐝</div>
+    <div class="trail-dot" id="dot-2">✨</div>
+    <div class="trail-dot" id="dot-3">🫧</div>
+  </div>
+</header>
+
+<div id="stage"></div>
+<footer>Grown-ups: each round finishes on its own — no clicking needed except the bubble round.</footer>
+
+<div id="confetti-layer"></div>
+<div id="end-card">
+  <div class="box">
+    <h2>You did it! 🎉</h2>
+    <p>You moved, hovered, and clicked like a pro!</p>
+    <button id="restart">Play again</button>
+  </div>
+</div>
+
+<script>
+/* ---------- SOUND ENGINE (synthesized, no audio files needed) ---------- */
+let audioCtx = null;
+let soundOn = true;
+
+function getCtx(){
+  if (!audioCtx){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function tone(freq, startTime, duration, {type='sine', gain=0.18, glideTo=null} = {}){
+  if (!soundOn) return;
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, startTime);
+  if (glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, startTime + duration);
+  g.gain.setValueAtTime(0, startTime);
+  g.gain.linearRampToValueAtTime(gain, startTime + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.02);
+}
+
+function playMove(){
+  // soft blip while positioning near a target — throttled by caller
+  const ctx = getCtx();
+  tone(520, ctx.currentTime, 0.06, {type:'triangle', gain:0.06});
+}
+function playFlowerReached(){
+  const ctx = getCtx();
+  const t = ctx.currentTime;
+  tone(660, t, 0.16, {type:'sine', gain:0.2});
+  tone(880, t + 0.08, 0.18, {type:'sine', gain:0.18});
+}
+function playFireflyAwake(){
+  const ctx = getCtx();
+  const t = ctx.currentTime;
+  tone(784, t, 0.12, {type:'sine', gain:0.16});
+  tone(988, t + 0.09, 0.12, {type:'sine', gain:0.16});
+  tone(1319, t + 0.18, 0.2, {type:'sine', gain:0.14});
+}
+function playBubblePop(){
+  const ctx = getCtx();
+  tone(300, ctx.currentTime, 0.12, {type:'sine', gain:0.22, glideTo:900});
+}
+function playStageComplete(){
+  const ctx = getCtx();
+  const t = ctx.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => tone(f, t + i*0.11, 0.22, {type:'sine', gain:0.18}));
+}
+function playFinale(){
+  const ctx = getCtx();
+  const t = ctx.currentTime;
+  const notes = [523, 659, 784, 1047, 784, 1047, 1319];
+  notes.forEach((f, i) => tone(f, t + i*0.13, 0.3, {type:'sine', gain:0.17}));
+}
+
+function unlockAudioOnce(){
+  getCtx();
+  document.removeEventListener('mousedown', unlockAudioOnce);
+  document.removeEventListener('touchstart', unlockAudioOnce);
+}
+document.addEventListener('mousedown', unlockAudioOnce);
+document.addEventListener('touchstart', unlockAudioOnce);
+
+const soundBtn = document.getElementById('sound-toggle');
+soundBtn.addEventListener('click', () => {
+  getCtx();
+  soundOn = !soundOn;
+  soundBtn.textContent = soundOn ? '🔊' : '🔇';
+});
+
+const stage = document.getElementById('stage');
+const subtitle = document.getElementById('subtitle');
+const dots = [document.getElementById('dot-1'), document.getElementById('dot-2'), document.getElementById('dot-3')];
+
+function setActiveDot(i){
+  dots.forEach((d, idx) => {
+    d.classList.toggle('active', idx === i);
+  });
+}
+function markDone(i){
+  dots[i].classList.add('done');
+  dots[i].classList.remove('active');
+}
+
+function clearStage(){ stage.innerHTML = ''; }
+
+/* ---------- STAGE 1: POSITIONING ---------- */
+function startStage1(){
+  setActiveDot(0);
+  subtitle.textContent = "Move the mouse to guide the bee to each flower!";
+  clearStage();
+
+  const spots = [
+    {x:0.18,y:0.25}, {x:0.78,y:0.3}, {x:0.5,y:0.72}, {x:0.2,y:0.75}
+  ];
+  let reached = 0;
+
+  const bee = document.createElement('div');
+  bee.id = 'bee';
+  bee.textContent = '🐝';
+  stage.appendChild(bee);
+
+  const spotEls = spots.map((s) => {
+    const el = document.createElement('div');
+    el.className = 'target flower-spot';
+    el.textContent = '🌸';
+    stage.appendChild(el);
+    return {el, s};
+  });
+
+  function layout(){
+    const r = stage.getBoundingClientRect();
+    spotEls.forEach(({el, s}) => {
+      el.style.left = (s.x * r.width - 50) + 'px';
+      el.style.top = (s.y * r.height - 50) + 'px';
+    });
+  }
+  layout();
+  window.addEventListener('resize', layout);
+
+  function onMove(e){
+    const r = stage.getBoundingClientRect();
+    const mx = e.clientX - r.left;
+    const my = e.clientY - r.top;
+    bee.style.left = mx + 'px';
+    bee.style.top = my + 'px';
+
+    spotEls.forEach(({el, s}, idx) => {
+      if (el.classList.contains('reached')) return;
+      const cx = s.x * r.width, cy = s.y * r.height;
+      const dist = Math.hypot(mx - cx, my - cy);
+      if (dist < 60){
+        el.classList.remove('near');
+        el.classList.add('reached');
+        playFlowerReached();
+        reached++;
+        if (reached === spots.length){
+          stage.removeEventListener('mousemove', onMove);
+          burstConfetti(12);
+          playStageComplete();
+          setTimeout(() => { markDone(0); startStage2(); }, 500);
+        }
+      } else if (dist < 110){
+        if (!el.classList.contains('near')) playMove();
+        el.classList.add('near');
+      } else {
+        el.classList.remove('near');
+      }
+    });
+  }
+  stage.addEventListener('mousemove', onMove);
+}
+
+/* ---------- STAGE 2: HOVERING ---------- */
+function startStage2(){
+  setActiveDot(1);
+  subtitle.textContent = "Hold your mouse still over each firefly to wake it up!";
+  clearStage();
+
+  const spots = [ {x:0.25,y:0.35}, {x:0.72,y:0.28}, {x:0.5,y:0.68} ];
+  let awakeCount = 0;
+  const HOLD_MS = 1400;
+
+  spots.forEach((s) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'target firefly-spot';
+    wrap.textContent = '💤';
+    const ring = document.createElement('div');
+    ring.className = 'ring';
+    wrap.appendChild(ring);
+    stage.appendChild(wrap);
+
+    let progress = 0;
+    let timer = null;
+    let awake = false;
+
+    function place(){
+      const r = stage.getBoundingClientRect();
+      wrap.style.left = (s.x * r.width - 60) + 'px';
+      wrap.style.top = (s.y * r.height - 60) + 'px';
+    }
+    place();
+    window.addEventListener('resize', place);
+
+    function tick(){
+      progress += 40;
+      ring.style.setProperty('--p', Math.min(100, (progress / HOLD_MS) * 100));
+      if (progress >= HOLD_MS && !awake){
+        awake = true;
+        wrap.classList.add('awake');
+        wrap.textContent = '✨';
+        playFireflyAwake();
+        awakeCount++;
+        clearInterval(timer);
+        if (awakeCount === spots.length){
+          burstConfetti(12);
+          playStageComplete();
+          setTimeout(() => { markDone(1); startStage3(); }, 500);
+        }
+      }
+    }
+
+    wrap.addEventListener('mouseenter', () => {
+      if (awake) return;
+      timer = setInterval(tick, 40);
+    });
+    wrap.addEventListener('mouseleave', () => {
+      if (awake) return;
+      clearInterval(timer);
+      progress = 0;
+      ring.style.setProperty('--p', 0);
+    });
+  });
+}
+
+/* ---------- STAGE 3: CLICKING ---------- */
+function startStage3(){
+  setActiveDot(2);
+  subtitle.textContent = "Click each bubble to pop it!";
+  clearStage();
+
+  const spots = [
+    {x:0.15,y:0.3}, {x:0.4,y:0.6}, {x:0.65,y:0.25},
+    {x:0.85,y:0.55}, {x:0.5,y:0.8}
+  ];
+  let popped = 0;
+
+  spots.forEach((s) => {
+    const el = document.createElement('div');
+    el.className = 'target bubble';
+    stage.appendChild(el);
+
+    function place(){
+      const r = stage.getBoundingClientRect();
+      el.style.left = (s.x * r.width - 45) + 'px';
+      el.style.top = (s.y * r.height - 45) + 'px';
+    }
+    place();
+    window.addEventListener('resize', place);
+
+    el.addEventListener('click', () => {
+      if (el.classList.contains('popped')) return;
+      el.classList.add('popped');
+      playBubblePop();
+      popped++;
+      if (popped === spots.length){
+        burstConfetti(24);
+        playFinale();
+        setTimeout(showEnd, 500);
+      }
+    });
+  });
+}
+
+/* ---------- CONFETTI + END ---------- */
+function burstConfetti(n){
+  const layer = document.getElementById('confetti-layer');
+  const colors = ['#FF7CA3','#FFD166','#4FD1C5','#7FC48C','#A8DDFD'];
+  for (let i = 0; i < n; i++){
+    const c = document.createElement('div');
+    c.className = 'confetto';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration = (1.6 + Math.random()*1.2) + 's';
+    layer.appendChild(c);
+    setTimeout(() => c.remove(), 3000);
+  }
+}
+
+function showEnd(){
+  document.getElementById('end-card').classList.add('show');
+}
+
+document.getElementById('restart').addEventListener('click', () => {
+  document.getElementById('end-card').classList.remove('show');
+  dots.forEach(d => d.classList.remove('done','active'));
+  startStage1();
+});
+
+startStage1();
+</script>
+</body>
+</html>
