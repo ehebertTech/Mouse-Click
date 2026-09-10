@@ -197,9 +197,35 @@
     font-size:1.5rem; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
+
+  #start-screen{
+    position:fixed; inset:0; z-index:70;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(var(--sky-top), var(--water-bottom));
+    cursor:pointer;
+  }
+  #start-screen .box{
+    background:var(--card); padding:44px 56px; border-radius:30px;
+    text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.2);
+    border:4px solid var(--star);
+  }
+  #start-screen .emoji{ font-size:4rem; margin-bottom:6px; }
+  #start-screen h2{
+    margin:0 0 10px; font-size:2.3rem; color:#0F3140;
+    font-family:'Fredoka',sans-serif;
+  }
+  #start-screen p{ margin:0; font-size:1.2rem; color:#0F3140; }
 </style>
 </head>
 <body>
+
+<div id="start-screen">
+  <div class="box">
+    <div class="emoji">🐟🫧⭐</div>
+    <h2>Ocean Mouse Explorer</h2>
+    <p>Click anywhere to start!</p>
+  </div>
+</div>
 
 <div id="water"></div>
 <div id="sand"></div>
@@ -590,7 +616,12 @@ document.getElementById('restart').addEventListener('click', () => {
   startRound1();
 });
 
-startRound1();
+document.getElementById('start-screen').addEventListener('click', () => {
+  getCtx();
+  pickVoice();
+  document.getElementById('start-screen').remove();
+  startRound1();
+});
 </script>
 </body>
 </html>
