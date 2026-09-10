@@ -288,6 +288,31 @@ function playFinale(){
   notes.forEach((f, i) => tone(f, t + i*0.13, 0.3, {type:'sine', gain:0.17}));
 }
 
+/* ---------- SPOKEN INSTRUCTIONS (built-in browser text-to-speech) ---------- */
+let chosenVoice = null;
+function pickVoice(){
+  if (!window.speechSynthesis) return;
+  const voices = speechSynthesis.getVoices();
+  chosenVoice =
+    voices.find(v => /en/i.test(v.lang) && /female|samantha|google us english/i.test(v.name)) ||
+    voices.find(v => /en/i.test(v.lang)) ||
+    voices[0] || null;
+}
+if (window.speechSynthesis){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+
+function speak(text){
+  if (!soundOn || !window.speechSynthesis) return;
+  speechSynthesis.cancel(); // don't let instructions pile up
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.85;
+  utter.pitch = 1.05;
+  if (chosenVoice) utter.voice = chosenVoice;
+  speechSynthesis.speak(utter);
+}
+
 function unlockAudioOnce(){
   getCtx();
   document.removeEventListener('mousedown', unlockAudioOnce);
@@ -301,6 +326,7 @@ soundBtn.addEventListener('click', () => {
   getCtx();
   soundOn = !soundOn;
   soundBtn.textContent = soundOn ? '🔊' : '🔇';
+  if (!soundOn && window.speechSynthesis) speechSynthesis.cancel();
 });
 
 const stage = document.getElementById('stage');
@@ -320,6 +346,7 @@ function clearStage(){ stage.innerHTML = ''; }
 function startRound1(){
   setActiveDot(0);
   subtitle.textContent = "Move the mouse to guide the fish to each shell!";
+  speak("Move the mouse to guide the fish to each shell!");
   clearStage();
 
   const spots = [
@@ -400,18 +427,39 @@ function startRound1(){
 function startRound2(){
   setActiveDot(1);
   subtitle.textContent = "Click each bubble before it floats away!";
+  speak("Click each bubble before it floats away!");
   clearStage();
 
-  const TOTAL = 10;
+  const REQUIRED = 8;      // bubbles a child needs to pop to finish the round
+  const MAX_ONSCREEN = 3;  // keeps things uncluttered for first-time mouse users
   let popped = 0;
-  let spawned = 0;
-  let spawnTimer = null;
+  let onscreen = 0;
+  let spawning = true;
+  let spawnTimeout = null;
+
+  const counter = document.createElement('div');
+  counter.style.cssText = `
+    position:absolute; top:14px; right:18px; z-index:15;
+    background:rgba(255,255,255,0.85); border-radius:20px;
+    padding:8px 16px; font-family:'Fredoka',sans-serif; font-weight:600;
+    font-size:1.05rem; color:#0F3140; box-shadow:0 2px 6px rgba(0,0,0,0.12);
+  `;
+  function updateCounter(){ counter.textContent = `🫧 ${popped} / ${REQUIRED}`; }
+  updateCounter();
+  stage.appendChild(counter);
+
+  function scheduleNext(){
+    if (!spawning) return;
+    spawnTimeout = setTimeout(() => {
+      if (spawning && onscreen < MAX_ONSCREEN) spawnBubble();
+      scheduleNext();
+    }, 1100 + Math.random() * 500);
+  }
 
   function spawnBubble(){
-    if (spawned >= TOTAL) { clearInterval(spawnTimer); return; }
-    spawned++;
+    onscreen++;
     const r = stage.getBoundingClientRect();
-    const size = 60 + Math.random() * 30;
+    const size = 85 + Math.random() * 30; // bigger targets
     const el = document.createElement('div');
     el.className = 'float-bubble';
     el.style.width = size + 'px';
@@ -421,15 +469,24 @@ function startRound2(){
     el.style.top = (r.height + size) + 'px';
     stage.appendChild(el);
 
-    const duration = 3800 + Math.random() * 1400;
-    const drift = (Math.random() - 0.5) * 80;
+    // Slow, gentle rise — plenty of time for a first-time mouse user to react
+    const duration = 8000 + Math.random() * 2000;
+    const drift = (Math.random() - 0.5) * 50; // gentler sideways drift
     const start = performance.now();
+    let resolved = false;
+
+    function cleanup(){
+      if (resolved) return;
+      resolved = true;
+      onscreen--;
+    }
 
     function animate(now){
       if (!el.isConnected) return;
       const t = (now - start) / duration;
       if (t >= 1){
         el.remove();
+        cleanup();
         return;
       }
       const y = r.height + size - t * (r.height + size * 2);
@@ -445,13 +502,17 @@ function startRound2(){
       el.classList.add('popped');
       playBubblePop();
       popped++;
+      updateCounter();
+      cleanup();
       setTimeout(() => el.remove(), 300);
       checkDone();
     });
   }
 
   function checkDone(){
-    if (popped === TOTAL){
+    if (popped >= REQUIRED){
+      spawning = false;
+      clearTimeout(spawnTimeout);
       burstConfetti(16);
       playStageComplete();
       setTimeout(() => { markDone(1); startRound3(); }, 500);
@@ -459,13 +520,14 @@ function startRound2(){
   }
 
   spawnBubble();
-  spawnTimer = setInterval(spawnBubble, 900);
+  scheduleNext();
 }
 
 /* ---------- ROUND 3: FIND THE STARFISH (precision clicking) ---------- */
 function startRound3(){
   setActiveDot(2);
   subtitle.textContent = "Click each starfish hiding in the sand!";
+  speak("Click each starfish hiding in the sand!");
   clearStage();
 
   const spots = [
@@ -519,6 +581,7 @@ function burstConfetti(n){
 
 function showEnd(){
   document.getElementById('end-card').classList.add('show');
+  speak("You did it! You moved and clicked like a pro explorer!");
 }
 
 document.getElementById('restart').addEventListener('click', () => {
