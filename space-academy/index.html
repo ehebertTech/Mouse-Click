@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Space Mouse Academy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap');
+
+  :root{
+    --space-deep:#0B1026;
+    --space-mid:#182449;
+    --space-panel:#1F2D5C;
+    --purple:#8C7AE6;
+    --cyan:#4FD1C5;
+    --orange:#FF9F5A;
+    --pink:#FF6FA5;
+    --star:#FFD966;
+    --star-dark:#E8B23D;
+    --ink:#E9ECFB;
+    --card:#161B3A;
+    --green:#7CFFB2;
+    --green-dark:#3FCB86;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:'Fredoka',sans-serif;}
+
+  body{
+    background:
+      radial-gradient(2px 2px at 10% 20%, #fff 0, transparent 60%),
+      radial-gradient(2px 2px at 80% 10%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 60% 70%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 30% 85%, #fff 0, transparent 60%),
+      radial-gradient(2px 2px at 90% 60%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 45% 40%, #fff 0, transparent 60%),
+      linear-gradient(var(--space-deep), var(--space-mid));
+    position:relative;
+    color:var(--ink);
+    user-select:none;
+  }
+
+  #planet{
+    position:absolute; top:40px; right:60px;
+    width:100px; height:100px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #FFB870, var(--orange) 70%, #C9701F);
+    box-shadow:0 0 30px rgba(255,159,90,0.4);
+  }
+  #planet::after{
+    content:''; position:absolute; top:38%; left:-20%;
+    width:140%; height:16px; border-radius:50%;
+    background:rgba(255,255,255,0.35);
+    transform:rotate(-12deg);
+  }
+
+  header{ position:relative; z-index:5; text-align:center; padding:20px 10px 6px; }
+  h1{ margin:0; font-size:2.1rem; color:var(--ink); }
+  #subtitle{ margin:6px 0 0; font-size:1.15rem; color:var(--cyan); font-weight:600; min-height:1.4em; }
+
+  #trail{ display:flex; justify-content:center; gap:18px; margin-top:10px; }
+  .trail-dot{
+    width:36px; height:36px; border-radius:50%;
+    background:rgba(255,255,255,0.12);
+    border:3px solid rgba(255,255,255,0.3);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.15rem; transition:transform .25s ease, background .25s ease, border-color .25s ease;
+  }
+  .trail-dot.done{ background:var(--green); border-color:var(--green-dark); transform:scale(1.15); }
+  .trail-dot.active{ border-color:var(--pink); transform:scale(1.2); }
+
+  #stage{
+    position:relative;
+    width:min(900px, 94vw);
+    height:min(540px, 62vh);
+    margin:12px auto 0;
+    background:rgba(255,255,255,0.04);
+    border-radius:28px;
+    border:4px solid rgba(255,255,255,0.25);
+    overflow:hidden;
+  }
+
+  .target{ position:absolute; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+
+  /* Round 1: double-click panels */
+  .panel{
+    width:120px; height:120px; border-radius:22px;
+    background:var(--space-panel);
+    border:3px solid var(--purple);
+    font-size:52px;
+    transition:transform .15s ease, background .15s ease, border-color .15s ease;
+  }
+  .panel:hover{ transform:scale(1.04); }
+  .panel.open{
+    background:var(--green); border-color:var(--green-dark);
+    animation:pop .35s ease;
+  }
+  .panel-hint{
+    position:absolute; bottom:-30px; left:50%; transform:translateX(-50%);
+    font-size:13px; color:var(--ink); opacity:0.75; white-space:nowrap;
+  }
+
+  /* Round 2: right-click aliens */
+  .alien{
+    width:110px; height:110px; border-radius:50%;
+    background:rgba(140,122,230,0.15);
+    border:3px dashed var(--purple);
+    font-size:56px;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .alien:hover{ transform:scale(1.05); }
+  .alien.scanned{
+    background:var(--pink); border-style:solid; border-color:#C94A7B;
+    animation:pop .35s ease;
+  }
+  .scan-badge{
+    position:absolute; top:-10px; right:-10px;
+    width:34px; height:34px; border-radius:50%;
+    background:var(--green); color:var(--space-deep);
+    display:flex; align-items:center; justify-content:center;
+    font-size:18px; font-weight:700; opacity:0; transition:opacity .2s ease;
+  }
+  .alien.scanned .scan-badge{ opacity:1; }
+
+  /* Round 3: scroll corridor */
+  #scroll-wrap{ position:absolute; inset:0; overflow-y:scroll; overflow-x:hidden; scroll-behavior:smooth; }
+  #scroll-inner{
+    position:relative; width:100%; height:2100px;
+    background:
+      radial-gradient(1.5px 1.5px at 20% 8%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 70% 15%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 40% 30%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 85% 45%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 15% 55%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 60% 65%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 30% 80%, #fff 0, transparent 60%),
+      radial-gradient(1.5px 1.5px at 75% 90%, #fff 0, transparent 60%);
+  }
+  .star-collect{
+    position:absolute; font-size:56px; cursor:pointer;
+    transition:transform .12s ease;
+    filter:drop-shadow(0 0 10px rgba(255,217,102,0.6));
+  }
+  .star-collect:hover{ transform:scale(1.12); }
+  .star-collect.got{ animation:pop-out .3s ease forwards; pointer-events:none; }
+  #finish-marker{
+    position:absolute; bottom:40px; left:50%; transform:translateX(-50%);
+    text-align:center; font-size:16px; color:var(--ink); opacity:0.85;
+  }
+  #scroll-progress-track{
+    position:absolute; top:16px; right:14px; width:10px; height:calc(100% - 32px);
+    background:rgba(255,255,255,0.12); border-radius:6px; z-index:10;
+  }
+  #scroll-progress-fill{
+    position:absolute; bottom:0; left:0; width:100%; height:0%;
+    background:var(--cyan); border-radius:6px; transition:height .05s linear;
+  }
+  #scroll-hint{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.35); padding:6px 16px; border-radius:20px;
+    font-size:14px; color:var(--ink); z-index:10; display:flex; align-items:center; gap:6px;
+    animation:bob 1.4s ease-in-out infinite;
+  }
+  @keyframes bob{ 0%,100%{ transform:translateX(-50%) translateY(0);} 50%{ transform:translateX(-50%) translateY(5px);} }
+
+  @keyframes pop{ 0%{ transform:scale(0.8);} 60%{ transform:scale(1.15);} 100%{ transform:scale(1);} }
+  @keyframes pop-out{ 0%{ transform:scale(1); opacity:1;} 100%{ transform:scale(1.6); opacity:0;} }
+
+  #confetti-layer{ position:fixed; inset:0; pointer-events:none; z-index:50; }
+  .confetto{ position:absolute; top:-20px; width:14px; height:14px; border-radius:3px; animation:fall linear forwards; }
+  @keyframes fall{ to{ transform:translateY(110vh) rotate(400deg);} }
+
+  #end-card{
+    position:fixed; inset:0; z-index:60;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(11,16,38,0.7); backdrop-filter:blur(2px);
+  }
+  #end-card.show{ display:flex; }
+  #end-card .box{
+    background:var(--card); padding:36px 44px; border-radius:26px;
+    text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);
+    border:4px solid var(--star);
+  }
+  #end-card h2{ margin:0 0 8px; font-size:2rem; color:var(--ink); }
+  #end-card p{ margin:0 0 20px; font-size:1.15rem; color:var(--ink); }
+  #restart{
+    font-family:'Fredoka',sans-serif; font-size:1.15rem; font-weight:600;
+    padding:12px 28px; border-radius:40px; border:none;
+    background:var(--pink); color:white; cursor:pointer;
+    box-shadow:0 4px 0 #C94A7B;
+  }
+  #restart:active{ transform:translateY(3px); box-shadow:0 1px 0 #C94A7B; }
+
+  footer{ position:relative; text-align:center; margin-top:8px; color:var(--ink); font-size:0.95rem; opacity:0.7; }
+
+  #sound-toggle{
+    position:absolute; top:22px; left:24px; z-index:20;
+    width:52px; height:52px; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.3);
+    background:rgba(255,255,255,0.1);
+    font-size:1.5rem; cursor:pointer; color:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  #start-screen{
+    position:fixed; inset:0; z-index:70;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(var(--space-deep), var(--space-mid));
+    cursor:pointer;
+  }
+  #start-screen .box{
+    background:var(--card); padding:44px 56px; border-radius:30px;
+    text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.4);
+    border:4px solid var(--star);
+  }
+  #start-screen .emoji{ font-size:4rem; margin-bottom:6px; }
+  #start-screen h2{ margin:0 0 10px; font-size:2.3rem; color:var(--ink); }
+  #start-screen p{ margin:0; font-size:1.2rem; color:var(--cyan); }
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <div class="box">
+    <div class="emoji">🚀👽⭐</div>
+    <h2>Space Mouse Academy</h2>
+    <p>Click anywhere to start!</p>
+  </div>
+</div>
+
+<div id="planet"></div>
+<button id="sound-toggle" aria-label="Toggle sound" title="Toggle sound">🔊</button>
+
+<header>
+  <h1>Space Mouse Academy</h1>
+  <div id="subtitle">Double-click each panel to unlock it!</div>
+  <div id="trail">
+    <div class="trail-dot active" id="dot-1">🔓</div>
+    <div class="trail-dot" id="dot-2">👽</div>
+    <div class="trail-dot" id="dot-3">⭐</div>
+  </div>
+</header>
+
+<div id="stage"></div>
+<footer>Round 1: double-click &nbsp;•&nbsp; Round 2: right-click &nbsp;•&nbsp; Round 3: scroll</footer>
+
+<div id="confetti-layer"></div>
+<div id="end-card">
+  <div class="box">
+    <h2>Mission Complete! 🎉</h2>
+    <p>You've earned your Space Mouse License, Cadet!</p>
+    <button id="restart">Play again</button>
+  </div>
+</div>
+
+<script>
+/* ---------- SOUND ENGINE (synthesized, no audio files needed) ---------- */
+let audioCtx = null;
+let soundOn = true;
+
+function getCtx(){
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function tone(freq, startTime, duration, {type='sine', gain=0.18, glideTo=null} = {}){
+  if (!soundOn) return;
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, startTime);
+  if (glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, startTime + duration);
+  g.gain.setValueAtTime(0, startTime);
+  g.gain.linearRampToValueAtTime(gain, startTime + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.02);
+}
+
+function playPanelOpen(){
+  const ctx = getCtx(); const t = ctx.currentTime;
+  tone(440, t, 0.1, {type:'square', gain:0.12});
+  tone(660, t + 0.08, 0.16, {type:'sine', gain:0.18});
+}
+function playScan(){
+  const ctx = getCtx(); const t = ctx.currentTime;
+  tone(880, t, 0.08, {type:'sine', gain:0.15});
+  tone(1100, t + 0.06, 0.12, {type:'sine', gain:0.15});
+}
+function playStarCollect(){
+  const ctx = getCtx();
+  tone(500, ctx.currentTime, 0.14, {type:'sine', gain:0.2, glideTo:1100});
+}
+function playStageComplete(){
+  const ctx = getCtx(); const t = ctx.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => tone(f, t + i*0.11, 0.22, {type:'sine', gain:0.18}));
+}
+function playFinale(){
+  const ctx = getCtx(); const t = ctx.currentTime;
+  [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, t + i*0.13, 0.3, {type:'sine', gain:0.17}));
+}
+
+/* ---------- SPOKEN INSTRUCTIONS ---------- */
+let chosenVoice = null;
+function pickVoice(){
+  if (!window.speechSynthesis) return;
+  const voices = speechSynthesis.getVoices();
+  chosenVoice =
+    voices.find(v => /en/i.test(v.lang) && /female|samantha|google us english/i.test(v.name)) ||
+    voices.find(v => /en/i.test(v.lang)) ||
+    voices[0] || null;
+}
+if (window.speechSynthesis){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speak(text){
+  if (!soundOn || !window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.92;
+  utter.pitch = 1.0;
+  if (chosenVoice) utter.voice = chosenVoice;
+  speechSynthesis.speak(utter);
+}
+
+const soundBtn = document.getElementById('sound-toggle');
+soundBtn.addEventListener('click', () => {
+  getCtx();
+  soundOn = !soundOn;
+  soundBtn.textContent = soundOn ? '🔊' : '🔇';
+  if (!soundOn && window.speechSynthesis) speechSynthesis.cancel();
+});
+
+const stage = document.getElementById('stage');
+const subtitle = document.getElementById('subtitle');
+const dots = [document.getElementById('dot-1'), document.getElementById('dot-2'), document.getElementById('dot-3')];
+
+function setActiveDot(i){ dots.forEach((d, idx) => d.classList.toggle('active', idx === i)); }
+function markDone(i){ dots[i].classList.add('done'); dots[i].classList.remove('active'); }
+function clearStage(){ stage.innerHTML = ''; }
+
+/* ---------- ROUND 1: DOUBLE-CLICK ---------- */
+function startRound1(){
+  setActiveDot(0);
+  subtitle.textContent = "Double-click each panel to unlock it!";
+  speak("Double click each panel to unlock it! Click twice, quickly, in the same spot.");
+  clearStage();
+
+  const spots = [ {x:0.16,y:0.28}, {x:0.5,y:0.18}, {x:0.82,y:0.32}, {x:0.5,y:0.68} ];
+  let opened = 0;
+
+  spots.forEach((s) => {
+    const el = document.createElement('div');
+    el.className = 'target panel';
+    el.textContent = '🔒';
+    stage.appendChild(el);
+
+    function place(){
+      const r = stage.getBoundingClientRect();
+      el.style.left = (s.x * r.width - 60) + 'px';
+      el.style.top = (s.y * r.height - 60) + 'px';
+    }
+    place();
+    window.addEventListener('resize', place);
+
+    el.addEventListener('dblclick', () => {
+      if (el.classList.contains('open')) return;
+      el.classList.add('open');
+      el.textContent = '🔓';
+      playPanelOpen();
+      opened++;
+      if (opened === spots.length){
+        burstConfetti(12);
+        playStageComplete();
+        setTimeout(() => { markDone(0); startRound2(); }, 600);
+      }
+    });
+  });
+}
+
+/* ---------- ROUND 2: RIGHT-CLICK ---------- */
+function startRound2(){
+  setActiveDot(1);
+  subtitle.textContent = "Right-click each alien to scan it!";
+  speak("Right click each alien to scan it! Use the right button on your mouse.");
+  clearStage();
+
+  const spots = [ {x:0.18,y:0.3}, {x:0.5,y:0.2}, {x:0.8,y:0.35}, {x:0.65,y:0.72}, {x:0.25,y:0.68} ];
+  let scanned = 0;
+
+  function blockMenu(e){ e.preventDefault(); }
+  stage.addEventListener('contextmenu', blockMenu);
+
+  spots.forEach((s) => {
+    const el = document.createElement('div');
+    el.className = 'target alien';
+    el.textContent = '👽';
+    const badge = document.createElement('div');
+    badge.className = 'scan-badge';
+    badge.textContent = '✓';
+    el.appendChild(badge);
+    stage.appendChild(el);
+
+    function place(){
+      const r = stage.getBoundingClientRect();
+      el.style.left = (s.x * r.width - 55) + 'px';
+      el.style.top = (s.y * r.height - 55) + 'px';
+    }
+    place();
+    window.addEventListener('resize', place);
+
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (el.classList.contains('scanned')) return;
+      el.classList.add('scanned');
+      playScan();
+      scanned++;
+      if (scanned === spots.length){
+        stage.removeEventListener('contextmenu', blockMenu);
+        burstConfetti(12);
+        playStageComplete();
+        setTimeout(() => { markDone(1); startRound3(); }, 600);
+      }
+    });
+  });
+}
+
+/* ---------- ROUND 3: SCROLL ---------- */
+function startRound3(){
+  setActiveDot(2);
+  subtitle.textContent = "Scroll down and click every star!";
+  speak("Scroll down using your mouse wheel, and click every star you find along the way!");
+  clearStage();
+
+  const wrap = document.createElement('div');
+  wrap.id = 'scroll-wrap';
+  const inner = document.createElement('div');
+  inner.id = 'scroll-inner';
+  wrap.appendChild(inner);
+  stage.appendChild(wrap);
+
+  const hint = document.createElement('div');
+  hint.id = 'scroll-hint';
+  hint.innerHTML = '⬇️ Scroll down!';
+  stage.appendChild(hint);
+
+  const track = document.createElement('div');
+  track.id = 'scroll-progress-track';
+  const fill = document.createElement('div');
+  fill.id = 'scroll-progress-fill';
+  track.appendChild(fill);
+  stage.appendChild(track);
+
+  const finish = document.createElement('div');
+  finish.id = 'finish-marker';
+  finish.innerHTML = '🛰️<br>Mission Control';
+  finish.style.top = '2000px';
+  inner.appendChild(finish);
+
+  const positions = [180, 560, 950, 1340, 1730];
+  let collected = 0;
+
+  positions.forEach((top, i) => {
+    const el = document.createElement('div');
+    el.className = 'star-collect';
+    el.textContent = '⭐';
+    el.style.top = top + 'px';
+    el.style.left = (i % 2 === 0 ? 22 : 68) + '%';
+    inner.appendChild(el);
+
+    el.addEventListener('click', () => {
+      if (el.classList.contains('got')) return;
+      el.classList.add('got');
+      playStarCollect();
+      collected++;
+      if (collected === positions.length){
+        burstConfetti(24);
+        playFinale();
+        setTimeout(showEnd, 700);
+      }
+    });
+  });
+
+  wrap.addEventListener('scroll', () => {
+    if (hint.style.display !== 'none' && wrap.scrollTop > 30) hint.style.display = 'none';
+    const max = wrap.scrollHeight - wrap.clientHeight;
+    const pct = max > 0 ? (wrap.scrollTop / max) * 100 : 0;
+    fill.style.height = pct + '%';
+  });
+}
+
+/* ---------- CONFETTI + END ---------- */
+function burstConfetti(n){
+  const layer = document.getElementById('confetti-layer');
+  const colors = ['#8C7AE6','#4FD1C5','#FF9F5A','#FF6FA5','#FFD966','#7CFFB2'];
+  for (let i = 0; i < n; i++){
+    const c = document.createElement('div');
+    c.className = 'confetto';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration = (1.6 + Math.random()*1.2) + 's';
+    layer.appendChild(c);
+    setTimeout(() => c.remove(), 3000);
+  }
+}
+
+function showEnd(){
+  document.getElementById('end-card').classList.add('show');
+  speak("Mission complete! You've earned your Space Mouse License, Cadet!");
+}
+
+document.getElementById('restart').addEventListener('click', () => {
+  document.getElementById('end-card').classList.remove('show');
+  dots.forEach(d => d.classList.remove('done','active'));
+  startRound1();
+});
+
+document.getElementById('start-screen').addEventListener('click', () => {
+  getCtx();
+  pickVoice();
+  document.getElementById('start-screen').remove();
+  startRound1();
+});
+</script>
+</body>
+</html>
