@@ -205,9 +205,35 @@
     font-size:1.5rem; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
   }
+
+  #start-screen{
+    position:fixed; inset:0; z-index:70;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(var(--sky-top), var(--sky-bottom));
+    cursor:pointer;
+  }
+  #start-screen .box{
+    background:var(--card); padding:44px 56px; border-radius:30px;
+    text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.15);
+    border:4px solid var(--sun);
+  }
+  #start-screen .emoji{ font-size:4rem; margin-bottom:6px; }
+  #start-screen h2{
+    margin:0 0 10px; font-size:2.3rem; color:var(--ink);
+    font-family:'Fredoka',sans-serif;
+  }
+  #start-screen p{ margin:0; font-size:1.2rem; color:var(--ink); }
 </style>
 </head>
 <body>
+
+<div id="start-screen">
+  <div class="box">
+    <div class="emoji">🐝🌸🫧</div>
+    <h2>Garden Mouse Adventure</h2>
+    <p>Click anywhere to start!</p>
+  </div>
+</div>
 
 <div id="sun"></div>
 <div id="hill"></div>
@@ -298,19 +324,36 @@ function playFinale(){
   notes.forEach((f, i) => tone(f, t + i*0.13, 0.3, {type:'sine', gain:0.17}));
 }
 
-function unlockAudioOnce(){
-  getCtx();
-  document.removeEventListener('mousedown', unlockAudioOnce);
-  document.removeEventListener('touchstart', unlockAudioOnce);
+/* ---------- SPOKEN INSTRUCTIONS (built-in browser text-to-speech) ---------- */
+let chosenVoice = null;
+function pickVoice(){
+  if (!window.speechSynthesis) return;
+  const voices = speechSynthesis.getVoices();
+  chosenVoice =
+    voices.find(v => /en/i.test(v.lang) && /female|samantha|google us english/i.test(v.name)) ||
+    voices.find(v => /en/i.test(v.lang)) ||
+    voices[0] || null;
 }
-document.addEventListener('mousedown', unlockAudioOnce);
-document.addEventListener('touchstart', unlockAudioOnce);
+if (window.speechSynthesis){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speak(text){
+  if (!soundOn || !window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.85;
+  utter.pitch = 1.05;
+  if (chosenVoice) utter.voice = chosenVoice;
+  speechSynthesis.speak(utter);
+}
 
 const soundBtn = document.getElementById('sound-toggle');
 soundBtn.addEventListener('click', () => {
   getCtx();
   soundOn = !soundOn;
   soundBtn.textContent = soundOn ? '🔊' : '🔇';
+  if (!soundOn && window.speechSynthesis) speechSynthesis.cancel();
 });
 
 const stage = document.getElementById('stage');
@@ -333,6 +376,7 @@ function clearStage(){ stage.innerHTML = ''; }
 function startStage1(){
   setActiveDot(0);
   subtitle.textContent = "Move the mouse to guide the bee to each flower!";
+  speak("Move the mouse to guide the bee to each flower!");
   clearStage();
 
   const spots = [
@@ -400,6 +444,7 @@ function startStage1(){
 function startStage2(){
   setActiveDot(1);
   subtitle.textContent = "Hold your mouse still over each firefly to wake it up!";
+  speak("Hold your mouse still over each firefly to wake it up!");
   clearStage();
 
   const spots = [ {x:0.25,y:0.35}, {x:0.72,y:0.28}, {x:0.5,y:0.68} ];
@@ -462,6 +507,7 @@ function startStage2(){
 function startStage3(){
   setActiveDot(2);
   subtitle.textContent = "Click each bubble to pop it!";
+  speak("Click each bubble to pop it!");
   clearStage();
 
   const spots = [
@@ -514,6 +560,7 @@ function burstConfetti(n){
 
 function showEnd(){
   document.getElementById('end-card').classList.add('show');
+  speak("You did it! You moved, hovered, and clicked like a pro!");
 }
 
 document.getElementById('restart').addEventListener('click', () => {
@@ -522,7 +569,12 @@ document.getElementById('restart').addEventListener('click', () => {
   startStage1();
 });
 
-startStage1();
+document.getElementById('start-screen').addEventListener('click', () => {
+  getCtx();
+  pickVoice();
+  document.getElementById('start-screen').remove();
+  startStage1();
+});
 </script>
 </body>
 </html>
