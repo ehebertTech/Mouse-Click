@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Farm Friends Drag &amp; Drop</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap');
+
+  :root{
+    --sky-top:#BEE3F8;
+    --sky-bottom:#EAF6FF;
+    --barn-red:#D1495B;
+    --barn-red-dark:#B23A49;
+    --hay:#F4C95D;
+    --hay-dark:#E0AF3C;
+    --grass:#8FCB8A;
+    --grass-dark:#6FB46A;
+    --ink:#3A3226;
+    --card:#FFFFFF;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;overflow:hidden;font-family:'Fredoka',sans-serif;}
+
+  body{
+    background:linear-gradient(var(--sky-top), var(--sky-bottom) 55%);
+    position:relative;
+    user-select:none;
+    touch-action:none;
+  }
+
+  #sun{
+    position:absolute; top:26px; right:56px;
+    width:86px; height:86px; border-radius:50%;
+    background:radial-gradient(circle at 35% 35%, #FFF1B8, var(--hay));
+    box-shadow:0 0 36px rgba(244,201,93,0.6);
+  }
+
+  #hill{
+    position:absolute; bottom:0; left:0; width:100%; height:120px;
+    background:var(--grass);
+    border-top-left-radius:50% 36px;
+    border-top-right-radius:50% 36px;
+  }
+  #hill::after{
+    content:''; position:absolute; top:12px; left:0; width:100%; height:18px;
+    background:var(--grass-dark); opacity:.5;
+    border-top-left-radius:50% 36px;
+    border-top-right-radius:50% 36px;
+  }
+
+  header{ position:relative; z-index:5; text-align:center; padding:20px 10px 6px; }
+  h1{ margin:0; font-size:2.05rem; color:var(--ink); text-shadow:0 2px 0 rgba(255,255,255,0.6); }
+  #subtitle{ margin:6px 0 0; font-size:1.12rem; color:var(--ink); font-weight:500; min-height:1.4em; }
+
+  #trail{ display:flex; justify-content:center; gap:18px; margin-top:10px; }
+  .trail-dot{
+    width:34px; height:34px; border-radius:50%;
+    background:rgba(255,255,255,0.7);
+    border:3px solid rgba(255,255,255,0.9);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1rem; transition:transform .25s ease, background .25s ease;
+  }
+  .trail-dot.done{ background:var(--hay); transform:scale(1.15); }
+  .trail-dot.active{ border-color:var(--barn-red-dark); transform:scale(1.2); }
+
+  #stage{
+    position:relative;
+    width:min(880px, 94vw);
+    height:min(520px, 60vh);
+    margin:12px auto 0;
+    background:rgba(255,255,255,0.5);
+    border-radius:28px;
+    border:4px solid rgba(255,255,255,0.85);
+    overflow:hidden;
+  }
+
+  .drag-item{
+    position:absolute;
+    font-size:52px;
+    cursor:grab;
+    touch-action:none;
+    filter:drop-shadow(0 3px 3px rgba(0,0,0,0.18));
+    transition:left .35s ease, top .35s ease;
+    z-index:5;
+  }
+  .drag-item.dragging{
+    cursor:grabbing;
+    transition:none;
+    transform:scale(1.18);
+    z-index:20;
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,0.28));
+  }
+  .drag-item.placed{
+    pointer-events:none;
+  }
+
+  .drop-zone{
+    position:absolute;
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column;
+    font-size:64px;
+    border-radius:26px;
+    transition:transform .15s ease, background .15s ease;
+  }
+  .drop-zone .zone-label{
+    font-size:13px; font-weight:600; color:var(--ink); opacity:0.7; margin-top:2px;
+  }
+  .drop-zone.near{ transform:scale(1.08); background:rgba(255,255,255,0.35); }
+  .drop-zone.filled{ background:rgba(255,255,255,0.25); }
+
+  #basket-zone{
+    width:170px; height:150px;
+    background:rgba(255,255,255,0.25);
+    border:4px dashed var(--barn-red);
+  }
+  #basket-count{
+    position:absolute; top:-14px; right:-14px;
+    background:var(--barn-red); color:white;
+    font-size:16px; font-weight:700;
+    border-radius:20px; padding:4px 12px;
+    box-shadow:0 2px 4px rgba(0,0,0,0.2);
+  }
+
+  .animal-zone{
+    width:150px; height:150px;
+    border:4px dashed var(--grass-dark);
+  }
+
+  @keyframes pop{ 0%{ transform:scale(0.8);} 60%{ transform:scale(1.2);} 100%{ transform:scale(1);} }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-8px); }
+    75%{ transform:translateX(8px); }
+  }
+  .shake{ animation:shake .3s ease; }
+
+  #confetti-layer{ position:fixed; inset:0; pointer-events:none; z-index:50; }
+  .confetto{ position:absolute; top:-20px; width:14px; height:14px; border-radius:3px; animation:fall linear forwards; }
+  @keyframes fall{ to{ transform:translateY(110vh) rotate(400deg);} }
+
+  #end-card{
+    position:fixed; inset:0; z-index:60;
+    display:none; align-items:center; justify-content:center;
+    background:rgba(190,227,248,0.65); backdrop-filter:blur(2px);
+  }
+  #end-card.show{ display:flex; }
+  #end-card .box{
+    background:var(--card); padding:36px 44px; border-radius:26px;
+    text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.15);
+    border:4px solid var(--hay);
+  }
+  #end-card h2{ margin:0 0 8px; font-size:2rem; color:var(--ink); }
+  #end-card p{ margin:0 0 20px; font-size:1.15rem; color:var(--ink); }
+  #restart{
+    font-family:'Fredoka',sans-serif; font-size:1.15rem; font-weight:600;
+    padding:12px 28px; border-radius:40px; border:none;
+    background:var(--barn-red); color:white; cursor:pointer;
+    box-shadow:0 4px 0 var(--barn-red-dark);
+  }
+  #restart:active{ transform:translateY(3px); box-shadow:0 1px 0 var(--barn-red-dark); }
+
+  footer{ position:relative; text-align:center; margin-top:8px; color:var(--ink); font-size:0.95rem; opacity:0.8; }
+
+  #sound-toggle{
+    position:absolute; top:22px; left:24px; z-index:20;
+    width:52px; height:52px; border-radius:50%;
+    border:3px solid rgba(255,255,255,0.9);
+    background:rgba(255,255,255,0.7);
+    font-size:1.5rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  #start-screen{
+    position:fixed; inset:0; z-index:70;
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(var(--sky-top), var(--sky-bottom));
+    cursor:pointer;
+  }
+  #start-screen .box{
+    background:var(--card); padding:44px 56px; border-radius:30px;
+    text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.15);
+    border:4px solid var(--hay);
+  }
+  #start-screen .emoji{ font-size:4rem; margin-bottom:6px; }
+  #start-screen h2{ margin:0 0 10px; font-size:2.2rem; color:var(--ink); }
+  #start-screen p{ margin:0; font-size:1.2rem; color:var(--ink); }
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <div class="box">
+    <div class="emoji">🍎🧺🐰</div>
+    <h2>Farm Friends Drag &amp; Drop</h2>
+    <p>Click anywhere to start!</p>
+  </div>
+</div>
+
+<div id="sun"></div>
+<div id="hill"></div>
+<button id="sound-toggle" aria-label="Toggle sound" title="Toggle sound">🔊</button>
+
+<header>
+  <h1>Farm Friends Drag &amp; Drop</h1>
+  <div id="subtitle">Press and hold an apple, drag it to the basket, then let go!</div>
+  <div id="trail">
+    <div class="trail-dot active" id="dot-1">🍎</div>
+    <div class="trail-dot" id="dot-2">🐰</div>
+  </div>
+</header>
+
+<div id="stage"></div>
+<footer>Press and hold to pick something up. Move the mouse. Let go to drop it!</footer>
+
+<div id="confetti-layer"></div>
+<div id="end-card">
+  <div class="box">
+    <h2>Great job! 🎉</h2>
+    <p>You picked up, dragged, and dropped like a farm pro!</p>
+    <button id="restart">Play again</button>
+  </div>
+</div>
+
+<script>
+/* ---------- SOUND ENGINE (synthesized, no audio files needed) ---------- */
+let audioCtx = null;
+let soundOn = true;
+
+function getCtx(){
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function tone(freq, startTime, duration, {type='sine', gain=0.18, glideTo=null} = {}){
+  if (!soundOn) return;
+  const ctx = getCtx();
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, startTime);
+  if (glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, startTime + duration);
+  g.gain.setValueAtTime(0, startTime);
+  g.gain.linearRampToValueAtTime(gain, startTime + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(startTime);
+  osc.stop(startTime + duration + 0.02);
+}
+
+function playPickup(){
+  const ctx = getCtx();
+  tone(420, ctx.currentTime, 0.07, {type:'triangle', gain:0.09});
+}
+function playDropSuccess(){
+  const ctx = getCtx(); const t = ctx.currentTime;
+  tone(660, t, 0.16, {type:'sine', gain:0.2});
+  tone(880, t + 0.08, 0.18, {type:'sine', gain:0.18});
+}
+function playStageComplete(){
+  const ctx = getCtx(); const t = ctx.currentTime;
+  [523, 659, 784, 1047].forEach((f, i) => tone(f, t + i*0.11, 0.22, {type:'sine', gain:0.18}));
+}
+function playFinale(){
+  const ctx = getCtx(); const t = ctx.currentTime;
+  [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, t + i*0.13, 0.3, {type:'sine', gain:0.17}));
+}
+
+/* ---------- SPOKEN INSTRUCTIONS ---------- */
+let chosenVoice = null;
+function pickVoice(){
+  if (!window.speechSynthesis) return;
+  const voices = speechSynthesis.getVoices();
+  chosenVoice =
+    voices.find(v => /en/i.test(v.lang) && /female|samantha|google us english/i.test(v.name)) ||
+    voices.find(v => /en/i.test(v.lang)) ||
+    voices[0] || null;
+}
+if (window.speechSynthesis){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+function speak(text){
+  if (!soundOn || !window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.rate = 0.85;
+  utter.pitch = 1.05;
+  if (chosenVoice) utter.voice = chosenVoice;
+  speechSynthesis.speak(utter);
+}
+
+const soundBtn = document.getElementById('sound-toggle');
+soundBtn.addEventListener('click', () => {
+  getCtx();
+  soundOn = !soundOn;
+  soundBtn.textContent = soundOn ? '🔊' : '🔇';
+  if (!soundOn && window.speechSynthesis) speechSynthesis.cancel();
+});
+
+const stage = document.getElementById('stage');
+const subtitle = document.getElementById('subtitle');
+const dots = [document.getElementById('dot-1'), document.getElementById('dot-2')];
+
+function setActiveDot(i){ dots.forEach((d, idx) => d.classList.toggle('active', idx === i)); }
+function markDone(i){ dots[i].classList.add('done'); dots[i].classList.remove('active'); }
+function clearStage(){ stage.innerHTML = ''; }
+
+/* Generic drag helper using Pointer Events (works for mouse and touch/trackpad alike).
+   onDrop(itemEl, x, y) is called with stage-relative coordinates when the item is released;
+   it should return true if the drop was accepted (item gets placed / hidden by caller)
+   or false if the item should spring back to its start position. */
+function makeDraggable(el, onDrop){
+  let startLeft, startTop, startX, startY, dragging = false;
+
+  el.addEventListener('pointerdown', (e) => {
+    if (el.classList.contains('placed')) return;
+    dragging = true;
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('dragging');
+    const r = stage.getBoundingClientRect();
+    startLeft = parseFloat(el.style.left);
+    startTop = parseFloat(el.style.top);
+    startX = e.clientX;
+    startY = e.clientY;
+    playPickup();
+    e.preventDefault();
+  });
+
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    el.style.left = (startLeft + dx) + 'px';
+    el.style.top = (startTop + dy) + 'px';
+  });
+
+  function endDrag(e){
+    if (!dragging) return;
+    dragging = false;
+    el.classList.remove('dragging');
+    const r = stage.getBoundingClientRect();
+    const cx = parseFloat(el.style.left) + el.offsetWidth / 2;
+    const cy = parseFloat(el.style.top) + el.offsetHeight / 2;
+    const accepted = onDrop(el, cx, cy);
+    if (!accepted){
+      el.style.left = startLeft + 'px';
+      el.style.top = startTop + 'px';
+      el.classList.add('shake');
+      setTimeout(() => el.classList.remove('shake'), 300);
+    }
+  }
+
+  el.addEventListener('pointerup', endDrag);
+  el.addEventListener('pointercancel', endDrag);
+}
+
+/* ---------- ROUND 1: FILL THE BASKET ---------- */
+function startRound1(){
+  setActiveDot(0);
+  subtitle.textContent = "Press and hold an apple, drag it to the basket, then let go!";
+  speak("Press and hold an apple, drag it into the basket, then let go!");
+  clearStage();
+
+  const basket = document.createElement('div');
+  basket.className = 'drop-zone';
+  basket.id = 'basket-zone';
+  basket.innerHTML = '🧺<span class="zone-label">Basket</span>';
+  const countBadge = document.createElement('div');
+  countBadge.id = 'basket-count';
+  countBadge.textContent = '0 / 5';
+  basket.appendChild(countBadge);
+  stage.appendChild(basket);
+
+  function placeBasket(){
+    const r = stage.getBoundingClientRect();
+    basket.style.left = (r.width / 2 - 85) + 'px';
+    basket.style.top = (r.height - 175) + 'px';
+  }
+  placeBasket();
+  window.addEventListener('resize', placeBasket);
+
+  const applePositions = [
+    {x:0.12,y:0.15}, {x:0.32,y:0.08}, {x:0.52,y:0.16}, {x:0.72,y:0.08}, {x:0.88,y:0.18}
+  ];
+  let collected = 0;
+
+  applePositions.forEach((pos) => {
+    const apple = document.createElement('div');
+    apple.className = 'drag-item';
+    apple.textContent = '🍎';
+    stage.appendChild(apple);
+
+    function place(){
+      const r = stage.getBoundingClientRect();
+      apple.style.left = (pos.x * r.width - 26) + 'px';
+      apple.style.top = (pos.y * r.height - 26) + 'px';
+    }
+    place();
+    window.addEventListener('resize', place);
+
+    makeDraggable(apple, (el, cx, cy) => {
+      const br = basket.getBoundingClientRect();
+      const sr = stage.getBoundingClientRect();
+      const bx = (br.left - sr.left) + br.width / 2;
+      const by = (br.top - sr.top) + br.height / 2;
+      const dist = Math.hypot(cx - bx, cy - by);
+      if (dist < 95){
+        el.classList.add('placed');
+        el.style.transition = 'opacity .25s ease, transform .25s ease';
+        el.style.transform = 'scale(0)';
+        el.style.opacity = '0';
+        playDropSuccess();
+        collected++;
+        countBadge.textContent = collected + ' / 5';
+        basket.classList.add('filled');
+        if (collected === applePositions.length){
+          burstConfetti(12);
+          playStageComplete();
+          setTimeout(() => { markDone(0); startRound2(); }, 600);
+        }
+        return true;
+      }
+      return false;
+    });
+  });
+
+  // gentle "near basket" highlight while dragging any apple
+  stage.addEventListener('pointermove', () => {
+    const dragged = stage.querySelector('.drag-item.dragging');
+    if (!dragged){ basket.classList.remove('near'); return; }
+    const br = basket.getBoundingClientRect();
+    const dr = dragged.getBoundingClientRect();
+    const dist = Math.hypot(
+      (dr.left + dr.width/2) - (br.left + br.width/2),
+      (dr.top + dr.height/2) - (br.top + br.height/2)
+    );
+    basket.classList.toggle('near', dist < 130);
+  });
+}
+
+/* ---------- ROUND 2: FEED THE ANIMALS ---------- */
+function startRound2(){
+  setActiveDot(1);
+  subtitle.textContent = "Drag each food to the animal that wants it!";
+  speak("Drag each food to the animal that wants it! A rabbit likes carrots, a horse likes hay, and a pig likes corn.");
+  clearStage();
+
+  const animals = [
+    {id:'rabbit', emoji:'🐰', label:'Rabbit', x:0.15, y:0.62},
+    {id:'horse', emoji:'🐴', label:'Horse', x:0.5, y:0.55},
+    {id:'pig', emoji:'🐷', label:'Pig', x:0.85, y:0.62},
+  ];
+  const foods = [
+    {id:'rabbit', emoji:'🥕', x:0.18, y:0.12},
+    {id:'horse', emoji:'🌾', x:0.5, y:0.1},
+    {id:'pig', emoji:'🌽', x:0.82, y:0.12},
+  ];
+
+  const zoneEls = {};
+  animals.forEach((a) => {
+    const zone = document.createElement('div');
+    zone.className = 'drop-zone animal-zone';
+    zone.dataset.id = a.id;
+    zone.innerHTML = `${a.emoji}<span class="zone-label">${a.label}</span>`;
+    stage.appendChild(zone);
+    zoneEls[a.id] = zone;
+
+    function place(){
+      const r = stage.getBoundingClientRect();
+      zone.style.left = (a.x * r.width - 75) + 'px';
+      zone.style.top = (a.y * r.height - 75) + 'px';
+    }
+    place();
+    window.addEventListener('resize', place);
+  });
+
+  let fed = 0;
+
+  foods.forEach((f) => {
+    const item = document.createElement('div');
+    item.className = 'drag-item';
+    item.textContent = f.emoji;
+    stage.appendChild(item);
+
+    function place(){
+      const r = stage.getBoundingClientRect();
+      item.style.left = (f.x * r.width - 26) + 'px';
+      item.style.top = (f.y * r.height - 26) + 'px';
+    }
+    place();
+    window.addEventListener('resize', place);
+
+    makeDraggable(item, (el, cx, cy) => {
+      const sr = stage.getBoundingClientRect();
+      let bestZone = null, bestDist = Infinity;
+      Object.values(zoneEls).forEach((zone) => {
+        const zr = zone.getBoundingClientRect();
+        const zx = (zr.left - sr.left) + zr.width / 2;
+        const zy = (zr.top - sr.top) + zr.height / 2;
+        const dist = Math.hypot(cx - zx, cy - zy);
+        if (dist < bestDist){ bestDist = dist; bestZone = zone; }
+      });
+      if (bestZone && bestDist < 95){
+        if (bestZone.dataset.id === f.id){
+          el.classList.add('placed');
+          el.style.transition = 'opacity .25s ease, transform .25s ease';
+          el.style.transform = 'scale(0)';
+          el.style.opacity = '0';
+          bestZone.classList.add('filled');
+          playDropSuccess();
+          fed++;
+          if (fed === foods.length){
+            burstConfetti(20);
+            playFinale();
+            setTimeout(showEnd, 600);
+          }
+          return true;
+        }
+      }
+      return false;
+    });
+  });
+
+  stage.addEventListener('pointermove', () => {
+    const dragged = stage.querySelector('.drag-item.dragging');
+    Object.values(zoneEls).forEach(z => z.classList.remove('near'));
+    if (!dragged) return;
+    const dr = dragged.getBoundingClientRect();
+    let bestZone = null, bestDist = Infinity;
+    Object.values(zoneEls).forEach((zone) => {
+      const zr = zone.getBoundingClientRect();
+      const dist = Math.hypot(
+        (dr.left + dr.width/2) - (zr.left + zr.width/2),
+        (dr.top + dr.height/2) - (zr.top + zr.height/2)
+      );
+      if (dist < bestDist){ bestDist = dist; bestZone = zone; }
+    });
+    if (bestZone && bestDist < 130) bestZone.classList.add('near');
+  });
+}
+
+/* ---------- CONFETTI + END ---------- */
+function burstConfetti(n){
+  const layer = document.getElementById('confetti-layer');
+  const colors = ['#D1495B','#F4C95D','#8FCB8A','#BEE3F8','#FFFFFF'];
+  for (let i = 0; i < n; i++){
+    const c = document.createElement('div');
+    c.className = 'confetto';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration = (1.6 + Math.random()*1.2) + 's';
+    layer.appendChild(c);
+    setTimeout(() => c.remove(), 3000);
+  }
+}
+
+function showEnd(){
+  document.getElementById('end-card').classList.add('show');
+  speak("Great job! You picked up, dragged, and dropped like a farm pro!");
+}
+
+document.getElementById('restart').addEventListener('click', () => {
+  document.getElementById('end-card').classList.remove('show');
+  dots.forEach(d => d.classList.remove('done','active'));
+  startRound1();
+});
+
+document.getElementById('start-screen').addEventListener('click', () => {
+  getCtx();
+  pickVoice();
+  document.getElementById('start-screen').remove();
+  startRound1();
+});
+</script>
+</body>
+</html>
